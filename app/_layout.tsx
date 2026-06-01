@@ -2,7 +2,7 @@ import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
-import { useColorScheme } from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -12,7 +12,7 @@ export default function RootLayout() {
   }, [])
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="dark" backgroundColor="#ffffff" />
       <Stack
         screenOptions={{
@@ -28,6 +28,6 @@ export default function RootLayout() {
         <Stack.Screen name="running/feedback" options={{ headerShown: false, presentation: 'transparentModal', animation: 'fade' }} />
         <Stack.Screen name="running/weather" options={{ headerShown: false, presentation: 'transparentModal', animation: 'fade' }} />
       </Stack>
-    </>
+    </SafeAreaProvider>
   )
 }

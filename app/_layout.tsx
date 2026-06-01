@@ -1,56 +1,28 @@
-import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import { Stack } from 'expo-router'
+import { StatusBar } from 'expo-status-bar'
+import * as SplashScreen from 'expo-splash-screen'
+import { useEffect } from 'react'
 
-import { useColorScheme } from '@/components/useColorScheme';
-
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
-
-export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
-};
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync()
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
-
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+    SplashScreen.hideAsync()
+  }, [])
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <>
+      <StatusBar style="dark" />
       <Stack>
+        <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/register" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="running/ready" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="running/active" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="running/complete" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="running/feedback" options={{ headerShown: false, presentation: 'transparentModal', animation: 'fade' }} />
+        <Stack.Screen name="running/weather" options={{ headerShown: false, presentation: 'transparentModal', animation: 'fade' }} />
       </Stack>
-    </ThemeProvider>
-  );
+    </>
+  )
 }

@@ -1,19 +1,24 @@
-const tintColorLight = '#2f95dc';
-const tintColorDark = '#fff';
-
-export default {
-  light: {
-    text: '#000',
-    background: '#fff',
-    tint: tintColorLight,
-    tabIconDefault: '#ccc',
-    tabIconSelected: tintColorLight,
-  },
-  dark: {
-    text: '#fff',
-    background: '#000',
-    tint: tintColorDark,
-    tabIconDefault: '#ccc',
-    tabIconSelected: tintColorDark,
-  },
-};
+/** Figma Make 실제 색상값 기준 */
+export const Colors = {
+  PRIMARY: '#2563eb',
+  PRIMARY_DARK: '#1d4ed8',
+  PRIMARY_LIGHT: '#eff6ff',
+  PRIMARY_300: '#93c5fd',
+  BACKGROUND: '#f3f4f6',
+  CARD: '#ffffff',
+  SURFACE: '#f8fafc',
+  SURFACE_DARK: '#f3f4f6',
+  BORDER: '#e5e7eb',
+  BORDER_DARK: '#d1d5db',
+  TEXT_PRIMARY: '#111827',
+  TEXT_SECONDARY: '#6b7280',
+  TEXT_DARK: '#374151',
+  TEXT_WHITE: '#ffffff',
+  TEXT_MUTED: '#9ca3af',
+  NAVBAR_BG: 'rgba(255,255,255,0.97)',
+  SUCCESS: '#059669',
+  SUCCESS_DARK: '#047857',
+  SUCCESS_BG: '#ecfdf5',
+  WARNING: '#d97706',
+  DANGER: '#dc2626',
+} as const

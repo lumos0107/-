@@ -2,6 +2,7 @@ import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
+import { useColorScheme } from 'react-native'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -12,8 +13,12 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style="dark" />
-      <Stack>
+      <StatusBar style="dark" backgroundColor="#ffffff" />
+      <Stack
+        screenOptions={{
+          contentStyle: { backgroundColor: '#f3f4f6' },
+        }}
+      >
         <Stack.Screen name="auth/login" options={{ headerShown: false }} />
         <Stack.Screen name="auth/register" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

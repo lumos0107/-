@@ -1,18 +1,37 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
-import { ArrowLeft, TrendingUp } from 'lucide-react-native'
+import { ArrowLeft } from 'lucide-react-native'
 import { Colors } from '../../../constants/Colors'
-import { DUMMY_HISTORY, DUMMY_SEGMENTS } from '../../../constants/dummy'
-import PaceItem from '../../../components/PaceItem'
-import { metersToKm, secondsToMinutes, secondsToPace } from '../../../utils/format'
+import { RunHistory } from '../../../utils/api'
+import { metersToKm, secondsToTime, secondsToPace } from '../../../utils/format'
 
 export default function RecordDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>()
-  const record = DUMMY_HISTORY.find((r) => r.recordId === Number(id)) ?? DUMMY_HISTORY[0]
+  const { recordJson } = useLocalSearchParams<{ recordJson: string }>()
+
+  const record = useMemo<RunHistory | null>(() => {
+    try { return JSON.parse(recordJson ?? 'null') } catch { return null }
+  }, [recordJson])
+
+  if (!record) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <ArrowLeft color={Colors.TEXT_PRIMARY} size={20} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>기록을 불러올 수 없습니다</Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
   const d = new Date(record.startedAt)
   const dateStr = `${d.getMonth() + 1}월 ${d.getDate()}일`
+  const calories = Math.round(record.totalDistanceMeters / 1000 * 60)
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -31,7 +50,7 @@ export default function RecordDetailScreen() {
           <View style={styles.statsRow}>
             {[
               { label: '총 거리', value: metersToKm(record.totalDistanceMeters), unit: 'km' },
-              { label: '총 시간', value: secondsToMinutes(record.totalTimeSeconds).toString(), unit: 'min' },
+              { label: '총 시간', value: secondsToTime(record.totalTimeSeconds), unit: '' },
               { label: '평균 페이스', value: secondsToPace(record.averagePaceSeconds), unit: '/km' },
             ].map((s, i) => (
               <React.Fragment key={s.label}>
@@ -39,7 +58,7 @@ export default function RecordDetailScreen() {
                 <View style={styles.statItem}>
                   <Text style={styles.statLabel}>{s.label}</Text>
                   <Text style={styles.statValue}>{s.value}</Text>
-                  <Text style={styles.statUnit}>{s.unit}</Text>
+                  {s.unit ? <Text style={styles.statUnit}>{s.unit}</Text> : null}
                 </View>
               </React.Fragment>
             ))}
@@ -48,28 +67,13 @@ export default function RecordDetailScreen() {
 
         <View style={styles.extraRow}>
           <View style={styles.extraCard}>
-            <Text style={styles.extraLabel}>최고 페이스</Text>
-            <Text style={styles.extraValue}>{secondsToPace(record.bestPaceSeconds)}</Text>
+            <Text style={styles.extraLabel}>칼로리 (추정)</Text>
+            <Text style={styles.extraValue}>{calories} kcal</Text>
           </View>
           <View style={styles.extraCard}>
-            <Text style={styles.extraLabel}>칼로리</Text>
-            <Text style={styles.extraValue}>{record.calories}</Text>
+            <Text style={styles.extraLabel}>날짜</Text>
+            <Text style={styles.extraValue}>{dateStr}</Text>
           </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <TrendingUp color={Colors.PRIMARY} size={16} />
-            <Text style={styles.sectionTitle}>고도 변화</Text>
-          </View>
-          <View style={styles.mapPlaceholder} />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>구간별 페이스</Text>
-          {DUMMY_SEGMENTS.map((s) => (
-            <PaceItem key={s.km} km={s.km} paceSeconds={s.paceSeconds} />
-          ))}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -94,14 +98,9 @@ const styles = StyleSheet.create({
   statUnit: { fontSize: 11, color: Colors.TEXT_SECONDARY },
   divider: { width: 1, height: 40, backgroundColor: Colors.BORDER },
   extraRow: { flexDirection: 'row', gap: 12 },
-  extraCard: {
-    flex: 1, backgroundColor: Colors.CARD, borderRadius: 12,
-    padding: 14, alignItems: 'center',
-  },
+  extraCard: { flex: 1, backgroundColor: Colors.CARD, borderRadius: 12, padding: 14, alignItems: 'center' },
   extraLabel: { fontSize: 10, fontWeight: '800', color: Colors.TEXT_SECONDARY, marginBottom: 4 },
-  extraValue: { fontSize: 18, fontWeight: '900', color: Colors.TEXT_PRIMARY },
-  section: { gap: 10 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionTitle: { fontSize: 14, fontWeight: '900', color: Colors.TEXT_PRIMARY },
-  mapPlaceholder: { height: 150, backgroundColor: Colors.SURFACE_DARK, borderRadius: 12 },
+  extraValue: { fontSize: 16, fontWeight: '900', color: Colors.TEXT_PRIMARY },
+  errorBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  errorText: { fontSize: 14, color: Colors.TEXT_SECONDARY },
 })

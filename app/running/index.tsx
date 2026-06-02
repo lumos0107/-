@@ -12,6 +12,7 @@ import { metersToKm, secondsToTime, secondsToPace } from '../../utils/format'
 import { useRunningGPS } from '../../hooks/useRunningGPS'
 import { RoutePoint, RunResult } from '../../utils/api'
 import { fetchWeather, weatherEmoji, WeatherData } from '../../utils/weather'
+import { saveRoute as persistRoute } from '../../utils/savedRoutes'
 
 type Status = 'waiting' | 'running' | 'saving' | 'survey'
 
@@ -221,7 +222,21 @@ export default function RunningScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.doneBtn, rating === 0 && styles.doneBtnDisabled]}
-              onPress={() => { if (rating > 0) router.replace('/(tabs)/record') }}
+              onPress={async () => {
+              if (rating === 0) return
+              if (saveRoute && result && parsedPoints.length > 0) {
+                await persistRoute({
+                  id: Date.now().toString(),
+                  courseId: Number(courseId ?? 0),
+                  name: courseName ?? '추천 코스',
+                  distanceMeters: Math.round(result.totalDistanceMeters),
+                  estimatedDurationSeconds: result.totalTimeSeconds,
+                  points: parsedPoints,
+                  savedAt: new Date().toISOString(),
+                })
+              }
+              router.replace('/(tabs)/record')
+            }}
             >
               <Text style={styles.doneBtnText}>완료</Text>
             </TouchableOpacity>

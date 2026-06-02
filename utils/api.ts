@@ -75,6 +75,23 @@ export async function recommendRoutes(
 
 export type LapPace = { km: number; paceSecPerKm: number }
 
+export type RunHistory = {
+  recordId: number
+  totalDistanceMeters: number
+  totalTimeSeconds: number
+  averagePaceSeconds: number
+  startedAt: string
+  endedAt: string
+  courseName: string
+}
+
+export async function getRunHistory(): Promise<RunHistory[]> {
+  const userId = await getStoredUserId()
+  const res = await fetch(`${BASE_URL}/api/runs/history?userId=${userId}`)
+  if (!res.ok) return []
+  return res.json()
+}
+
 export type RunResult = {
   totalDistanceMeters: number
   totalTimeSeconds: number

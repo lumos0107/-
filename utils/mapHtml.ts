@@ -51,7 +51,11 @@ export function getStaticMapHtml(token: string, points: RoutePoint[]): string {
 </html>`
 }
 
-export function getRunningMapHtml(token: string, points: RoutePoint[]): string {
+export function getRunningMapHtml(
+  token: string,
+  points: RoutePoint[],
+  initialCenter?: { latitude: number; longitude: number },
+): string {
   const coords = points.map((p) => [p.longitude, p.latitude])
 
   return `<!DOCTYPE html>
@@ -84,7 +88,7 @@ export function getRunningMapHtml(token: string, points: RoutePoint[]): string {
     const map = new mapboxgl.Map({
       container: 'map',
       style: 'mapbox://styles/mapbox/streets-v12',
-      center: routeCoords[0],
+      center: ${initialCenter ? `[${initialCenter.longitude}, ${initialCenter.latitude}]` : 'routeCoords[0]'},
       zoom: 15,
     });
 

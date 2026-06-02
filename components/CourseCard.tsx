@@ -2,7 +2,7 @@ import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { Colors } from '../constants/Colors'
 import { metersToKm, secondsToMinutes } from '../utils/format'
-import type { RouteOption } from '../constants/dummy'
+import type { RouteOption } from '../utils/api'
 
 interface Props {
   course: RouteOption
@@ -17,9 +17,11 @@ export default function CourseCard({ course, onPress }: Props) {
           <View style={styles.dot} />
           <Text style={styles.name}>{course.courseName}</Text>
         </View>
-        <View style={styles.scoreBadge}>
-          <Text style={styles.scoreText}>{course.score}점</Text>
-        </View>
+        {course.score != null && (
+          <View style={styles.scoreBadge}>
+            <Text style={styles.scoreText}>{course.score}점</Text>
+          </View>
+        )}
       </View>
       <View style={styles.stats}>
         <Text style={styles.stat}>거리 {metersToKm(course.totalDistanceMeters)}km</Text>

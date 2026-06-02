@@ -1,18 +1,23 @@
 import React from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { router } from 'expo-router'
-import { Sun, X } from 'lucide-react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
+import { router, useLocalSearchParams } from 'expo-router'
+import { X } from 'lucide-react-native'
 import { Colors } from '../../constants/Colors'
-
-const WEATHER = { temp: '23°C', condition: '맑음', humidity: '65%', wind: '2.3m/s' }
+import { weatherEmoji, runningComment, WeatherData } from '../../utils/weather'
 
 export default function WeatherScreen() {
+  const { weatherJson } = useLocalSearchParams<{ weatherJson?: string }>()
+
+  const weather: WeatherData | null = weatherJson ? JSON.parse(weatherJson) : null
+
   return (
     <View style={styles.overlay}>
       <View style={styles.panel}>
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <Sun color={Colors.WARNING} size={16} />
+            <Text style={styles.titleEmoji}>
+              {weather ? weatherEmoji(weather.icon) : '🌤'}
+            </Text>
             <Text style={styles.title}>날씨 정보</Text>
           </View>
           <TouchableOpacity onPress={() => router.back()}>
@@ -20,23 +25,31 @@ export default function WeatherScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.grid}>
-          {[
-            { label: '온도', value: WEATHER.temp },
-            { label: '상태', value: WEATHER.condition },
-            { label: '습도', value: WEATHER.humidity },
-            { label: '바람', value: WEATHER.wind },
-          ].map((item) => (
-            <View key={item.label} style={styles.cell}>
-              <Text style={styles.cellLabel}>{item.label}</Text>
-              <Text style={styles.cellValue}>{item.value}</Text>
+        {weather ? (
+          <>
+            <View style={styles.grid}>
+              {[
+                { label: '온도', value: `${weather.temp}°C` },
+                { label: '상태', value: weather.condition },
+                { label: '습도', value: `${weather.humidity}%` },
+                { label: '바람', value: `${weather.windSpeed.toFixed(1)}m/s` },
+              ].map((item) => (
+                <View key={item.label} style={styles.cell}>
+                  <Text style={styles.cellLabel}>{item.label}</Text>
+                  <Text style={styles.cellValue}>{item.value}</Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
-
-        <View style={styles.commentBox}>
-          <Text style={styles.comment}>러닝하기 좋은 날씨예요 👍</Text>
-        </View>
+            <View style={styles.commentBox}>
+              <Text style={styles.comment}>{runningComment(weather.temp, weather.icon)}</Text>
+            </View>
+          </>
+        ) : (
+          <View style={styles.loading}>
+            <ActivityIndicator color={Colors.PRIMARY} />
+            <Text style={styles.loadingText}>날씨 정보를 불러오는 중...</Text>
+          </View>
+        )}
       </View>
     </View>
   )
@@ -52,6 +65,7 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  titleEmoji: { fontSize: 18 },
   title: { fontSize: 14, fontWeight: '800', color: Colors.TEXT_PRIMARY },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   cell: { width: '47%', backgroundColor: Colors.SURFACE_DARK, borderRadius: 10, padding: 12 },
@@ -59,4 +73,6 @@ const styles = StyleSheet.create({
   cellValue: { fontSize: 16, fontWeight: '900', color: Colors.TEXT_PRIMARY },
   commentBox: { backgroundColor: Colors.SUCCESS_BG, borderRadius: 8, padding: 12 },
   comment: { fontSize: 11, fontWeight: '700', color: Colors.SUCCESS_DARK },
+  loading: { alignItems: 'center', gap: 8, paddingVertical: 20 },
+  loadingText: { fontSize: 12, color: Colors.TEXT_SECONDARY },
 })

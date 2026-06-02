@@ -11,6 +11,7 @@ import PaceItem from '../../components/PaceItem'
 import { metersToKm, secondsToTime, secondsToPace } from '../../utils/format'
 import { useRunningGPS } from '../../hooks/useRunningGPS'
 import { RoutePoint, RunResult } from '../../utils/api'
+import { fetchWeather, weatherEmoji, WeatherData } from '../../utils/weather'
 
 type Status = 'waiting' | 'running' | 'saving' | 'survey'
 
@@ -29,6 +30,7 @@ export default function RunningScreen() {
   const [saveRoute, setSaveRoute] = useState(false)
   const [result, setResult] = useState<RunResult | null>(null)
   const [initialLocation, setInitialLocation] = useState<RoutePoint | null>(null)
+  const [weather, setWeather] = useState<WeatherData | null>(null)
 
   const gps = useRunningGPS()
 
@@ -36,7 +38,11 @@ export default function RunningScreen() {
     Location.requestForegroundPermissionsAsync().then(({ status: s }) => {
       if (s !== 'granted') return
       Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
-        .then(loc => setInitialLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude }))
+        .then(loc => {
+          const pt = { latitude: loc.coords.latitude, longitude: loc.coords.longitude }
+          setInitialLocation(pt)
+          fetchWeather(pt.latitude, pt.longitude).then(setWeather).catch(() => {})
+        })
         .catch(() => {})
     })
   }, [])
@@ -81,9 +87,14 @@ export default function RunningScreen() {
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.weatherBtn}
-            onPress={() => router.push('/running/weather')}
+            onPress={() => router.push({
+              pathname: '/running/weather',
+              params: weather ? { weatherJson: JSON.stringify(weather) } : {},
+            })}
           >
-            <Text style={styles.weatherText}>☀ 23°</Text>
+            <Text style={styles.weatherText}>
+              {weather ? `${weatherEmoji(weather.icon)} ${weather.temp}°` : '🌤 --°'}
+            </Text>
           </TouchableOpacity>
           {status === 'running' && (
             <TouchableOpacity style={styles.stopBtn} onPress={handleStop}>

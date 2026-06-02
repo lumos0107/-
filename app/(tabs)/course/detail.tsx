@@ -3,10 +3,47 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
+import Svg, { Polyline, Line, Text as SvgText } from 'react-native-svg'
 import { Colors } from '../../../constants/Colors'
 import RouteMapView from '../../../components/RouteMapView'
 import { metersToKm, secondsToMinutes } from '../../../utils/format'
-import { RouteOption } from '../../../utils/api'
+import { RouteOption, RoutePoint } from '../../../utils/api'
+
+const GRAPH_W = 320
+const GRAPH_H = 60
+
+function ElevationGraph({ points }: { points: RoutePoint[] }) {
+  const elevPoints = points.filter(p => p.elevation != null)
+  if (elevPoints.length < 2) return null
+
+  const elevations = elevPoints.map(p => p.elevation as number)
+  const minE = Math.min(...elevations)
+  const maxE = Math.max(...elevations)
+  const range = maxE - minE || 1
+
+  const coords = elevPoints.map((p, i) => {
+    const x = (i / (elevPoints.length - 1)) * GRAPH_W
+    const y = GRAPH_H - ((( p.elevation as number) - minE) / range) * GRAPH_H
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+
+  return (
+    <View style={graphStyles.container}>
+      <Text style={graphStyles.label}>고도 프로필</Text>
+      <Svg width={GRAPH_W} height={GRAPH_H + 16}>
+        <Line x1="0" y1={GRAPH_H} x2={GRAPH_W} y2={GRAPH_H} stroke={Colors.BORDER} strokeWidth="1" />
+        <Polyline points={coords} fill="none" stroke={Colors.PRIMARY} strokeWidth="2" />
+        <SvgText x="0" y={GRAPH_H + 14} fontSize="9" fill={Colors.TEXT_SECONDARY}>{Math.round(minE)}m</SvgText>
+        <SvgText x={GRAPH_W - 28} y={GRAPH_H + 14} fontSize="9" fill={Colors.TEXT_SECONDARY}>{Math.round(maxE)}m</SvgText>
+      </Svg>
+    </View>
+  )
+}
+
+const graphStyles = StyleSheet.create({
+  container: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: Colors.CARD, borderBottomWidth: 1, borderBottomColor: Colors.BORDER },
+  label: { fontSize: 11, fontWeight: '800', color: Colors.TEXT_SECONDARY, marginBottom: 6 },
+})
 
 export default function CourseDetailScreen() {
   const { routes: routesJson, selectedIndex } = useLocalSearchParams<{
@@ -73,6 +110,9 @@ export default function CourseDetailScreen() {
           </Text>
         </View>
       )}
+
+      {/* 고도 그래프 */}
+      {route && <ElevationGraph points={route.points} />}
 
       {/* 지도 */}
       {route && <RouteMapView key={activeIdx} points={route.points} flex />}

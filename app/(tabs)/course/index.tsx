@@ -75,6 +75,7 @@ export default function CourseFindScreen() {
         loc.coords.latitude,
         loc.coords.longitude,
         selectedDist * 1000,
+        selectedDiff ?? 'beginner',
       )
       setRoutes(data.routes)
       setShowResults(true)

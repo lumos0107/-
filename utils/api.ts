@@ -34,7 +34,7 @@ export async function signupUser(email: string, password: string): Promise<void>
   }
 }
 
-export type RoutePoint = { latitude: number; longitude: number }
+export type RoutePoint = { latitude: number; longitude: number; elevation?: number }
 
 export type RouteOption = {
   courseId: number
@@ -62,11 +62,12 @@ export async function recommendRoutes(
   latitude: number,
   longitude: number,
   targetDistance: number,
+  difficulty: string,
 ): Promise<RecommendResponse> {
   const res = await fetch(`${BASE_URL}/api/routes/recommend`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ latitude, longitude, targetDistance }),
+    body: JSON.stringify({ latitude, longitude, targetDistance, difficulty }),
   })
   if (!res.ok) throw new Error('경로 추천 실패')
   return res.json()

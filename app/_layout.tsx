@@ -1,21 +1,32 @@
 import { Stack, router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 SplashScreen.preventAutoHideAsync()
 
 export default function RootLayout() {
+  const [ready, setReady] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
   useEffect(() => {
-    AsyncStorage.getItem('userId').then(val => {
-      SplashScreen.hideAsync()
-      if (!val) {
-        router.replace('/auth/login')
-      }
-    })
+    AsyncStorage.getItem('userId')
+      .then(val => setIsLoggedIn(!!val))
+      .catch(() => setIsLoggedIn(false))
+      .finally(() => {
+        SplashScreen.hideAsync()
+        setReady(true)
+      })
   }, [])
+
+  useEffect(() => {
+    if (!ready) return
+    if (!isLoggedIn) {
+      router.replace('/auth/login')
+    }
+  }, [ready, isLoggedIn])
 
   return (
     <SafeAreaProvider>

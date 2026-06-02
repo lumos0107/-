@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect, useState } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as SecureStore from 'expo-secure-store'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -12,7 +12,7 @@ export default function RootLayout() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
-    AsyncStorage.getItem('userId')
+    SecureStore.getItemAsync('userId')
       .then(val => setIsLoggedIn(!!val))
       .catch(() => setIsLoggedIn(false))
       .finally(() => {

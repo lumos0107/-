@@ -1,9 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as SecureStore from 'expo-secure-store'
 
 const BASE_URL = 'http://43.200.178.203:8080'
 
 export async function getStoredUserId(): Promise<number> {
-  const val = await AsyncStorage.getItem('userId')
+  const val = await SecureStore.getItemAsync('userId')
   return val ? Number(val) : 1
 }
 
@@ -18,7 +18,7 @@ export async function loginUser(email: string, password: string): Promise<{ user
     throw new Error(data.message || '로그인에 실패했습니다.')
   }
   const data = await res.json()
-  await AsyncStorage.setItem('userId', String(data.userId))
+  await SecureStore.setItemAsync('userId', String(data.userId))
   return data
 }
 

@@ -14,6 +14,7 @@ export function getStaticMapHtml(token: string, points: RoutePoint[]): string {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { width: 100vw; height: 100vh; overflow: hidden; }
     #map { width: 100%; height: 100%; }
+    .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib { display: none !important; }
   </style>
 </head>
 <body>
@@ -64,6 +65,7 @@ export function getRunningMapHtml(token: string, points: RoutePoint[]): string {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { width: 100vw; height: 100vh; overflow: hidden; }
     #map { width: 100%; height: 100%; }
+    .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib { display: none !important; }
   </style>
 </head>
 <body>

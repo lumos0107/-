@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Modal, Pressable,
+  ScrollView, Modal, Pressable, ActivityIndicator, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { X } from 'lucide-react-native'
+import * as Location from 'expo-location'
 import { Colors } from '../../../constants/Colors'
-import { DUMMY_ROUTES } from '../../../constants/dummy'
 import CourseCard from '../../../components/CourseCard'
+import { recommendRoutes, RouteOption } from '../../../utils/api'
 
-const DISTANCES = [3, 5, 7, 10]
+const DISTANCES = [3, 5, 10]
 const DIFFICULTIES = [
   { label: '초보', value: 'beginner' },
   { label: '고수', value: 'normal' },
@@ -20,15 +21,37 @@ export default function CourseFindScreen() {
   const [selectedDist, setSelectedDist] = useState<number | null>(null)
   const [selectedDiff, setSelectedDiff] = useState<string | null>(null)
   const [showResults, setShowResults] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [routes, setRoutes] = useState<RouteOption[]>([])
 
   const canSearch = selectedDist !== null && selectedDiff !== null
 
-  function handleSearch() {
-    setShowResults(true)
+  async function handleSearch() {
+    if (!selectedDist) return
+    setLoading(true)
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync()
+      if (status !== 'granted') {
+        Alert.alert('위치 권한 필요', '코스 추천을 위해 현재 위치가 필요합니다.')
+        setLoading(false)
+        return
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
+      const data = await recommendRoutes(
+        loc.coords.latitude,
+        loc.coords.longitude,
+        selectedDist * 1000,
+      )
+      setRoutes(data.routes)
+      setShowResults(true)
+    } catch (e: any) {
+      Alert.alert('오류', e.message || '코스 추천에 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function handleSelectCourse(courseId: number) {
-    const course = DUMMY_ROUTES.routes.find((r) => r.courseId === courseId)!
+  function handleSelectCourse(course: RouteOption) {
     setShowResults(false)
     router.push({
       pathname: '/(tabs)/course/detail',
@@ -37,6 +60,7 @@ export default function CourseFindScreen() {
         courseName: course.courseName,
         distance: course.totalDistanceMeters.toString(),
         duration: course.estimatedDurationSeconds.toString(),
+        points: JSON.stringify(course.points),
       },
     })
   }
@@ -81,15 +105,17 @@ export default function CourseFindScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.searchBtn, !canSearch && styles.searchBtnDisabled]}
+          style={[styles.searchBtn, (!canSearch || loading) && styles.searchBtnDisabled]}
           onPress={handleSearch}
-          disabled={!canSearch}
+          disabled={!canSearch || loading}
         >
-          <Text style={styles.searchBtnText}>코스 찾기</Text>
+          {loading
+            ? <ActivityIndicator color={Colors.TEXT_WHITE} />
+            : <Text style={styles.searchBtnText}>코스 찾기</Text>
+          }
         </TouchableOpacity>
       </ScrollView>
 
-      {/* 바텀시트 모달 */}
       <Modal
         visible={showResults}
         transparent
@@ -106,11 +132,11 @@ export default function CourseFindScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {DUMMY_ROUTES.routes.map((course) => (
+            {routes.map((course) => (
               <CourseCard
                 key={course.courseId}
                 course={course}
-                onPress={() => handleSelectCourse(course.courseId)}
+                onPress={() => handleSelectCourse(course)}
               />
             ))}
           </ScrollView>
@@ -142,10 +168,7 @@ const styles = StyleSheet.create({
   },
   searchBtnDisabled: { backgroundColor: Colors.BORDER },
   searchBtnText: { fontSize: 14, fontWeight: '900', color: Colors.TEXT_WHITE },
-  // 바텀시트
-  overlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)',
-  },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
     backgroundColor: Colors.CARD,
     borderTopLeftRadius: 20, borderTopRightRadius: 20,

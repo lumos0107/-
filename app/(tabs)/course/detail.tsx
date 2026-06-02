@@ -1,18 +1,30 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Colors } from '../../../constants/Colors'
-import MapPlaceholder from '../../../components/MapPlaceholder'
+import RouteMapView from '../../../components/RouteMapView'
 import { metersToKm } from '../../../utils/format'
+import { RoutePoint } from '../../../utils/api'
 
 export default function CourseDetailScreen() {
-  const { courseId, courseName, distance, duration } = useLocalSearchParams<{
-    courseId: string; courseName: string; distance: string; duration: string
+  const { courseId, courseName, distance, duration, points } = useLocalSearchParams<{
+    courseId: string
+    courseName: string
+    distance: string
+    duration: string
+    points: string
   }>()
 
+  const parsedPoints = useMemo<RoutePoint[]>(() => {
+    try { return JSON.parse(points ?? '[]') } catch { return [] }
+  }, [points])
+
   function handleStart() {
-    router.push({ pathname: '/running/ready', params: { courseId, courseName, distance, duration } })
+    router.push({
+      pathname: '/running',
+      params: { courseId, courseName, distance, duration, points },
+    })
   }
 
   return (
@@ -24,7 +36,7 @@ export default function CourseDetailScreen() {
         </View>
       </View>
 
-      <MapPlaceholder height={520} />
+      <RouteMapView points={parsedPoints} height={520} />
 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.startBtn} onPress={handleStart}>

@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
-import { Star } from 'lucide-react-native'
+import { Star, ArrowLeft } from 'lucide-react-native'
+import * as Location from 'expo-location'
 import { Colors } from '../../constants/Colors'
 import RunningMapView from '../../components/RunningMapView'
 import StatBox from '../../components/StatBox'
@@ -27,8 +28,18 @@ export default function RunningScreen() {
   const [rating, setRating] = useState(0)
   const [saveRoute, setSaveRoute] = useState(false)
   const [result, setResult] = useState<RunResult | null>(null)
+  const [initialLocation, setInitialLocation] = useState<RoutePoint | null>(null)
 
   const gps = useRunningGPS()
+
+  useEffect(() => {
+    Location.requestForegroundPermissionsAsync().then(({ status: s }) => {
+      if (s !== 'granted') return
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+        .then(loc => setInitialLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude }))
+        .catch(() => {})
+    })
+  }, [])
 
   const progressPct = Math.min((gps.distanceMeters / totalDist) * 100, 100)
 
@@ -59,7 +70,14 @@ export default function RunningScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text style={styles.courseName}>{courseName ?? '코스'}</Text>
+        <View style={styles.headerLeft}>
+          {status === 'waiting' && (
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <ArrowLeft size={20} color={Colors.TEXT_PRIMARY} />
+            </TouchableOpacity>
+          )}
+          <Text style={styles.courseName}>{courseName ?? '코스'}</Text>
+        </View>
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.weatherBtn}
@@ -89,7 +107,7 @@ export default function RunningScreen() {
         </View>
       )}
 
-      <RunningMapView points={parsedPoints} currentLocation={gps.currentLocation} />
+      <RunningMapView points={parsedPoints} currentLocation={gps.currentLocation ?? initialLocation} />
 
       <View style={styles.footer}>
         {status === 'waiting' && (
@@ -210,6 +228,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
     backgroundColor: Colors.CARD, borderBottomWidth: 1, borderBottomColor: Colors.BORDER,
   },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backBtn: { padding: 4 },
   courseName: { fontSize: 14, fontWeight: '900', color: Colors.TEXT_PRIMARY },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   weatherBtn: { backgroundColor: Colors.SURFACE_DARK, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },

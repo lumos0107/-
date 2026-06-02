@@ -51,16 +51,13 @@ export default function CourseFindScreen() {
     }
   }
 
-  function handleSelectCourse(course: RouteOption) {
+  function handleSelectCourse(index: number) {
     setShowResults(false)
     router.push({
       pathname: '/(tabs)/course/detail',
       params: {
-        courseId: course.courseId.toString(),
-        courseName: course.courseName,
-        distance: course.totalDistanceMeters.toString(),
-        duration: course.estimatedDurationSeconds.toString(),
-        points: JSON.stringify(course.points),
+        routes: JSON.stringify(routes),
+        selectedIndex: index.toString(),
       },
     })
   }
@@ -132,11 +129,11 @@ export default function CourseFindScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {routes.map((course) => (
+            {routes.map((course, index) => (
               <CourseCard
                 key={course.courseId}
                 course={course}
-                onPress={() => handleSelectCourse(course)}
+                onPress={() => handleSelectCourse(index)}
               />
             ))}
           </ScrollView>

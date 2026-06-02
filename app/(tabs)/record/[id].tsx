@@ -5,7 +5,6 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft, TrendingUp } from 'lucide-react-native'
 import { Colors } from '../../../constants/Colors'
 import { DUMMY_HISTORY, DUMMY_SEGMENTS } from '../../../constants/dummy'
-import MapPlaceholder from '../../../components/MapPlaceholder'
 import PaceItem from '../../../components/PaceItem'
 import { metersToKm, secondsToMinutes, secondsToPace } from '../../../utils/format'
 
@@ -63,7 +62,7 @@ export default function RecordDetailScreen() {
             <TrendingUp color={Colors.PRIMARY} size={16} />
             <Text style={styles.sectionTitle}>고도 변화</Text>
           </View>
-          <MapPlaceholder height={150} />
+          <View style={styles.mapPlaceholder} />
         </View>
 
         <View style={styles.section}>
@@ -104,4 +103,5 @@ const styles = StyleSheet.create({
   section: { gap: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { fontSize: 14, fontWeight: '900', color: Colors.TEXT_PRIMARY },
+  mapPlaceholder: { height: 150, backgroundColor: Colors.SURFACE_DARK, borderRadius: 12 },
 })

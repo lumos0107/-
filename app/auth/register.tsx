@@ -1,23 +1,34 @@
 import React, { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform, ScrollView,
+  StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from 'react-native'
 import { router } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { Colors } from '../../constants/Colors'
+import { signupUser } from '../../utils/api'
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const passwordMismatch = confirm !== '' && password !== confirm
-  const canSubmit = email.trim() && password.trim() && password === confirm
+  const canSubmit = email.trim() !== '' && password.trim() !== '' && password === confirm
 
-  function handleRegister() {
-    if (canSubmit) {
+  async function handleRegister() {
+    if (!canSubmit) return
+    setLoading(true)
+    setError('')
+    try {
+      await signupUser(email.trim(), password.trim())
       router.replace('/auth/login')
+    } catch (e: any) {
+      setError(e.message || '회원가입에 실패했습니다.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -67,13 +78,17 @@ export default function RegisterScreen() {
           {passwordMismatch && (
             <Text style={styles.errorText}>비밀번호가 일치하지 않습니다</Text>
           )}
+          {error !== '' && <Text style={styles.errorText}>{error}</Text>}
 
           <TouchableOpacity
-            style={[styles.button, !canSubmit && styles.buttonDisabled]}
+            style={[styles.button, (!canSubmit || loading) && styles.buttonDisabled]}
             onPress={handleRegister}
-            disabled={!canSubmit}
+            disabled={!canSubmit || loading}
           >
-            <Text style={styles.buttonText}>가입하기</Text>
+            {loading
+              ? <ActivityIndicator color={Colors.TEXT_WHITE} />
+              : <Text style={styles.buttonText}>가입하기</Text>
+            }
           </TouchableOpacity>
         </View>
       </ScrollView>

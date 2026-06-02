@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import * as Location from 'expo-location'
-import { RoutePoint, LapPace, RunResult, startRun, updateRun, endRun } from '../utils/api'
+import { RoutePoint, LapPace, RunResult, startRun, updateRun, endRun, getStoredUserId } from '../utils/api'
 import { haversineMeters, paceSecPerKm } from '../utils/geo'
 
 export interface UseRunningGPSReturn {

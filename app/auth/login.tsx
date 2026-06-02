@@ -1,18 +1,32 @@
 import React, { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform, ScrollView,
+  StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
 } from 'react-native'
 import { router } from 'expo-router'
 import { Colors } from '../../constants/Colors'
+import { loginUser } from '../../utils/api'
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('1111')
+  const [password, setPassword] = useState('1111')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  function handleLogin() {
-    if (email.trim() && password.trim()) {
+  async function handleLogin() {
+    if (!email.trim() || !password.trim()) {
+      setError('이메일과 비밀번호를 입력하세요.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      await loginUser(email.trim(), password.trim())
       router.replace('/(tabs)')
+    } catch (e: any) {
+      setError(e.message || '로그인에 실패했습니다.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -23,7 +37,10 @@ export default function LoginScreen() {
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.appName}>🏃 길동무</Text>
+          <View style={styles.iconBox}>
+            <Text style={styles.iconText}>🏃</Text>
+          </View>
+          <Text style={styles.appName}>길동무</Text>
           <Text style={styles.tagline}>제주도 러닝 코스 추천</Text>
         </View>
 
@@ -49,12 +66,17 @@ export default function LoginScreen() {
             secureTextEntry
           />
 
+          {error !== '' && <Text style={styles.errorText}>{error}</Text>}
+
           <TouchableOpacity
-            style={[styles.button, (!email || !password) && styles.buttonDisabled]}
+            style={[styles.button, (loading || !email || !password) && styles.buttonDisabled]}
             onPress={handleLogin}
-            disabled={!email || !password}
+            disabled={loading || !email || !password}
           >
-            <Text style={styles.buttonText}>로그인</Text>
+            {loading
+              ? <ActivityIndicator color={Colors.TEXT_WHITE} />
+              : <Text style={styles.buttonText}>로그인</Text>
+            }
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/auth/register')}>
@@ -69,29 +91,28 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: Colors.CARD },
-  container: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 80 },
-  header: { marginBottom: 48 },
-  appName: { fontSize: 32, fontWeight: '900', color: Colors.TEXT_PRIMARY },
-  tagline: { fontSize: 14, color: Colors.TEXT_SECONDARY, marginTop: 4 },
+  container: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 80, paddingBottom: 40 },
+  header: { alignItems: 'center', marginBottom: 48 },
+  iconBox: {
+    width: 64, height: 64, backgroundColor: Colors.PRIMARY,
+    borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+  },
+  iconText: { fontSize: 32 },
+  appName: { fontSize: 26, fontWeight: '900', color: Colors.TEXT_PRIMARY },
+  tagline: { fontSize: 13, color: Colors.TEXT_SECONDARY, marginTop: 4 },
   form: { gap: 8 },
   label: { fontSize: 12, fontWeight: '800', color: Colors.TEXT_PRIMARY, marginTop: 8 },
   input: {
     height: 48,
     backgroundColor: Colors.SURFACE_DARK,
-    borderWidth: 1,
-    borderColor: Colors.BORDER,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 14,
-    color: Colors.TEXT_PRIMARY,
+    borderWidth: 1, borderColor: Colors.BORDER,
+    borderRadius: 10, paddingHorizontal: 16,
+    fontSize: 14, color: Colors.TEXT_PRIMARY,
   },
+  errorText: { fontSize: 12, color: Colors.DANGER, marginTop: 4 },
   button: {
-    height: 52,
-    backgroundColor: Colors.PRIMARY,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 24,
+    height: 52, backgroundColor: Colors.PRIMARY,
+    borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 20,
   },
   buttonDisabled: { backgroundColor: Colors.BORDER },
   buttonText: { fontSize: 16, fontWeight: '900', color: Colors.TEXT_WHITE },

@@ -1,4 +1,38 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
+
 const BASE_URL = 'http://43.200.178.203:8080'
+
+export async function getStoredUserId(): Promise<number> {
+  const val = await AsyncStorage.getItem('userId')
+  return val ? Number(val) : 1
+}
+
+export async function loginUser(email: string, password: string): Promise<{ userId: number; email: string }> {
+  const res = await fetch(`${BASE_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.message || '로그인에 실패했습니다.')
+  }
+  const data = await res.json()
+  await AsyncStorage.setItem('userId', String(data.userId))
+  return data
+}
+
+export async function signupUser(email: string, password: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.message || '회원가입에 실패했습니다.')
+  }
+}
 
 export type RoutePoint = { latitude: number; longitude: number }
 
@@ -47,11 +81,12 @@ export type RunResult = {
   lapPaces: LapPace[]
 }
 
-export async function startRun(courseId: number): Promise<number> {
+export async function startRun(courseId: number, userId?: number): Promise<number> {
+  const uid = userId ?? await getStoredUserId()
   const res = await fetch(`${BASE_URL}/api/runs/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId: 1, courseId }),
+    body: JSON.stringify({ userId: uid, courseId }),
   })
   if (!res.ok) throw new Error('러닝 시작 실패')
   const data = await res.json()

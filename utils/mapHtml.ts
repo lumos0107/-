@@ -36,7 +36,7 @@ export function getStaticMapHtml(token: string, points: RoutePoint[]): string {
       map.addLayer({
         id: 'route', type: 'line', source: 'route',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#2563eb', 'line-width': 5 },
+        paint: { 'line-color': '#2563eb', 'line-width': 3 },
       });
       const bounds = coords.reduce(
         (b, c) => b.extend(c),

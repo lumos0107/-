@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Modal, Pressable, ActivityIndicator, Alert,
+  ScrollView, Modal, Pressable, ActivityIndicator, Alert, Animated,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
@@ -25,6 +25,40 @@ export default function CourseFindScreen() {
   const [routes, setRoutes] = useState<RouteOption[]>([])
 
   const canSearch = selectedDist !== null && selectedDiff !== null
+
+  // 로딩 애니메이션
+  const bounceAnim = useRef(new Animated.Value(0)).current
+  const dotAnim1 = useRef(new Animated.Value(0)).current
+  const dotAnim2 = useRef(new Animated.Value(0)).current
+  const dotAnim3 = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    if (!loading) return
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, { toValue: -12, duration: 400, useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ])
+    ).start()
+    const dotLoop = (anim: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(anim, { toValue: 0, duration: 300, useNativeDriver: true }),
+          Animated.delay(600 - delay),
+        ])
+      ).start()
+    dotLoop(dotAnim1, 0)
+    dotLoop(dotAnim2, 200)
+    dotLoop(dotAnim3, 400)
+    return () => {
+      bounceAnim.stopAnimation()
+      dotAnim1.stopAnimation()
+      dotAnim2.stopAnimation()
+      dotAnim3.stopAnimation()
+    }
+  }, [loading])
 
   async function handleSearch() {
     if (!selectedDist) return
@@ -139,6 +173,30 @@ export default function CourseFindScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* 경로 생성 로딩 오버레이 */}
+      <Modal visible={loading} transparent animationType="fade">
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            <Animated.Text style={[styles.runnerEmoji, { transform: [{ translateY: bounceAnim }] }]}>
+              🏃
+            </Animated.Text>
+            <Text style={styles.loadingTitle}>경로 생성 중</Text>
+            <Text style={styles.loadingSubtitle}>최적 러닝 코스를 찾고 있어요</Text>
+            <View style={styles.dotRow}>
+              {[dotAnim1, dotAnim2, dotAnim3].map((anim, i) => (
+                <Animated.View
+                  key={i}
+                  style={[styles.dot, {
+                    opacity: anim,
+                    transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.2] }) }],
+                  }]}
+                />
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -185,4 +243,24 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginBottom: 16,
   },
   sheetTitle: { fontSize: 16, fontWeight: '900', color: Colors.TEXT_PRIMARY },
+
+  loadingOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  loadingCard: {
+    backgroundColor: Colors.CARD, borderRadius: 20,
+    paddingVertical: 36, paddingHorizontal: 48,
+    alignItems: 'center', gap: 10,
+    shadowColor: '#0f172a', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2, shadowRadius: 24, elevation: 12,
+  },
+  runnerEmoji: { fontSize: 48, marginBottom: 4 },
+  loadingTitle: { fontSize: 17, fontWeight: '900', color: Colors.TEXT_PRIMARY },
+  loadingSubtitle: { fontSize: 12, color: Colors.TEXT_SECONDARY, fontWeight: '600' },
+  dotRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  dot: {
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: Colors.PRIMARY,
+  },
 })

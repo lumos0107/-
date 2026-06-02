@@ -84,22 +84,26 @@ export default function CourseDetailScreen() {
       </View>
 
       {/* 루트 탭 */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={styles.tabContent}>
-        {allRoutes.map((r, i) => (
-          <TouchableOpacity
-            key={r.courseId}
-            style={[styles.tab, activeIdx === i && styles.tabActive]}
-            onPress={() => setActiveIdx(i)}
-          >
-            <Text style={[styles.tabText, activeIdx === i && styles.tabTextActive]}>
-              루트 {i + 1}
-            </Text>
-            <Text style={[styles.tabDist, activeIdx === i && styles.tabDistActive]}>
-              {metersToKm(r.totalDistanceMeters)}km
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.tabBar}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabContent}>
+        {allRoutes.map((r, i) => {
+          const TAB_COLORS = ['#2563eb', '#059669', '#d97706']
+          const color = TAB_COLORS[i] ?? TAB_COLORS[0]
+          const isActive = activeIdx === i
+          return (
+            <TouchableOpacity
+              key={r.courseId}
+              style={[styles.tab, isActive && { backgroundColor: color }]}
+              onPress={() => setActiveIdx(i)}
+            >
+              <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                루트 {i + 1}{'  '}{metersToKm(r.totalDistanceMeters)}km
+              </Text>
+            </TouchableOpacity>
+          )
+        })}
       </ScrollView>
+      </View>
 
       {/* 선택된 루트 정보 */}
       {route && (
@@ -139,18 +143,16 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 15, fontWeight: '900', color: Colors.TEXT_PRIMARY },
 
-  tabBar: { backgroundColor: Colors.CARD, borderBottomWidth: 1, borderBottomColor: Colors.BORDER },
-  tabContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
+  tabBar: { backgroundColor: Colors.CARD, borderBottomWidth: 1, borderBottomColor: Colors.BORDER, alignItems: 'center' },
+  tabContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   tab: {
-    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10,
+    paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20,
     backgroundColor: Colors.SURFACE_DARK,
-    alignItems: 'center', minWidth: 72,
+    alignItems: 'center', justifyContent: 'center',
   },
   tabActive: { backgroundColor: Colors.PRIMARY },
-  tabText: { fontSize: 12, fontWeight: '800', color: Colors.TEXT_SECONDARY },
+  tabText: { fontSize: 13, fontWeight: '800', color: Colors.TEXT_SECONDARY },
   tabTextActive: { color: Colors.TEXT_WHITE },
-  tabDist: { fontSize: 10, fontWeight: '700', color: Colors.TEXT_SECONDARY, marginTop: 2 },
-  tabDistActive: { color: 'rgba(255,255,255,0.8)' },
 
   routeInfo: {
     paddingHorizontal: 16, paddingVertical: 10,

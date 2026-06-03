@@ -1,0 +1,37 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Spring Boot
+*.jar
+*.war
+
+# Environment
+.env
+*.env
+
+# Logs
+*.log
+logs/
+
+# Graph cache (large binary file)
+graph_cache.bin
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tools output
+tools/manual_points.sql

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>길동무 포인트 에디터</title>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, sans-serif; background: #f3f4f6; height: 100vh; display: flex; flex-direction: column; }
+
+    #toolbar {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 10px 14px; background: #1e293b; color: white;
+    }
+    #toolbar h1 { font-size: 14px; font-weight: 800; margin-right: 6px; }
+    #toolbar .sep { width: 1px; height: 20px; background: #475569; }
+    #toolbar .stat { font-size: 12px; color: #94a3b8; }
+    #toolbar .stat span { color: #38bdf8; font-weight: 700; }
+
+    button {
+      padding: 6px 14px; border: none; border-radius: 6px;
+      font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.85; }
+    #btn-undo { background: #f59e0b; color: white; }
+    #btn-clear { background: #ef4444; color: white; }
+    #btn-sql { background: #2563eb; color: white; }
+    #btn-copy { background: #059669; color: white; display: none; }
+    #btn-close-sql { background: #6b7280; color: white; display: none; }
+
+    #map { flex: 1; }
+
+    #sql-panel {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0;
+      background: #1e293b; padding: 14px; max-height: 40vh;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+    }
+    #sql-panel h2 { color: #e2e8f0; font-size: 13px; margin-bottom: 8px; }
+    #sql-output {
+      width: 100%; height: 160px; background: #0f172a; color: #86efac;
+      border: 1px solid #334155; border-radius: 6px;
+      padding: 10px; font-size: 11px; font-family: monospace; resize: none;
+    }
+    .sql-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+    .hint { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.65); color: white; padding: 6px 14px;
+      border-radius: 20px; font-size: 12px; pointer-events: none; z-index: 10; }
+  </style>
+</head>
+<body>
+
+<div id="toolbar">
+  <h1>📍 포인트 에디터</h1>
+  <div class="sep"></div>
+  <div class="stat">포인트: <span id="pt-count">0</span></div>
+  <div class="stat">엣지: <span id="edge-count">0</span></div>
+  <div class="stat">총 거리: <span id="total-dist">0</span>m</div>
+  <div class="sep"></div>
+  <button id="btn-undo">↩ 실행취소</button>
+  <button id="btn-clear">🗑 전체삭제</button>
+  <button id="btn-sql">⬇ SQL 생성</button>
+  <button id="btn-copy">📋 복사</button>
+  <button id="btn-close-sql">닫기</button>
+</div>
+
+<div id="map"></div>
+<div class="hint">지도를 클릭해서 포인트를 찍으세요</div>
+
+<div id="sql-panel">
+  <h2>생성된 SQL — RDS에 붙여 넣고 실행하세요</h2>
+  <textarea id="sql-output" readonly></textarea>
+  <div class="sql-actions">
+    <button id="btn-copy2" onclick="copySQL()" style="background:#059669;color:white;">📋 클립보드 복사</button>
+    <button onclick="closeSql()" style="background:#6b7280;color:white;">닫기</button>
+  </div>
+</div>
+
+<script>
+  mapboxgl.accessToken = 'YOUR_MAPBOX_TOKEN'; // .env의 VITE_MAPBOX_TOKEN 값으로 교체
+
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/streets-v12',
+    center: [126.5707, 33.4507], // 제주대
+    zoom: 15,
+  });
+
+  map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+  map.addControl(new mapboxgl.ScaleControl(), 'bottom-left');
+
+  let points = []; // [{lat, lng, marker}]
+  const markers = [];
+
+  // ── 거리 계산 ──────────────────────────────────────────────────
+  function haversine(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  // ── 라인 레이어 ────────────────────────────────────────────────
+  function updateLine() {
+    const coords = points.map(p => [p.lng, p.lat]);
+    const geojson = { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
+
+    if (map.getSource('line')) {
+      map.getSource('line').setData(geojson);
+    } else if (coords.length >= 2) {
+      map.addSource('line', { type: 'geojson', data: geojson });
+      map.addLayer({ id: 'line', type: 'line', source: 'line',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': '#2563eb', 'line-width': 3 }
+      });
+    }
+  }
+
+  // ── 마커 추가 ──────────────────────────────────────────────────
+  function addPoint(lat, lng) {
+    const idx = points.length;
+
+    const el = document.createElement('div');
+    el.style.cssText = `
+      width: 28px; height: 28px; border-radius: 50%;
+      background: ${idx === 0 ? '#059669' : '#2563eb'};
+      border: 3px solid white; display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 800; color: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4); cursor: pointer;
+    `;
+    el.textContent = idx + 1;
+
+    const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+      .setLngLat([lng, lat])
+      .addTo(map);
+
+    points.push({ lat, lng, marker });
+    updateStats();
+    updateLine();
+  }
+
+  // ── 통계 업데이트 ──────────────────────────────────────────────
+  function updateStats() {
+    document.getElementById('pt-count').textContent = points.length;
+    const edges = points.length > 1 ? (points.length - 1) * 2 : 0;
+    document.getElementById('edge-count').textContent = edges;
+
+    let total = 0;
+    for (let i = 1; i < points.length; i++) {
+      total += haversine(points[i-1].lat, points[i-1].lng, points[i].lat, points[i].lng);
+    }
+    document.getElementById('total-dist').textContent = Math.round(total);
+  }
+
+  // ── 클릭 이벤트 ────────────────────────────────────────────────
+  map.on('click', e => {
+    addPoint(e.lngLat.lat, e.lngLat.lng);
+  });
+
+  // ── 실행취소 ───────────────────────────────────────────────────
+  document.getElementById('btn-undo').onclick = () => {
+    if (points.length === 0) return;
+    const last = points.pop();
+    last.marker.remove();
+    updateStats();
+    updateLine();
+  };
+
+  // ── 전체삭제 ───────────────────────────────────────────────────
+  document.getElementById('btn-clear').onclick = () => {
+    if (!confirm('모든 포인트를 삭제할까요?')) return;
+    points.forEach(p => p.marker.remove());
+    points = [];
+    if (map.getLayer('line')) map.removeLayer('line');
+    if (map.getSource('line')) map.removeSource('line');
+    updateStats();
+  };
+
+  // ── SQL 생성 ───────────────────────────────────────────────────
+  document.getElementById('btn-sql').onclick = generateSQL;
+
+  function generateSQL() {
+    if (points.length === 0) { alert('포인트를 먼저 찍어주세요.'); return; }
+
+    const lines = [];
+    lines.push('-- ═══════════════════════════════════════════════════');
+    lines.push(`-- 길동무 수동 포인트 삽입 (${points.length}개 포인트, ${points.length > 1 ? (points.length-1)*2 : 0}개 엣지)`);
+    lines.push('-- ═══════════════════════════════════════════════════');
+    lines.push('');
+    lines.push('-- ① 현재 최대 point_id 기준으로 시작 ID 설정');
+    lines.push('SET @base = (SELECT COALESCE(MAX(point_id), 0) FROM jeju_road_points);');
+    lines.push('');
+    lines.push('-- ② 포인트 삽입');
+
+    points.forEach((p, i) => {
+      const lat = p.lat.toFixed(6);
+      const lng = p.lng.toFixed(6);
+      lines.push(`INSERT INTO jeju_road_points (latitude, longitude, elevation_meters, road_type) VALUES (${lat}, ${lng}, NULL, 'manual'); -- 포인트 ${i+1} → ID = @base+${i+1}`);
+    });
+
+    lines.push('');
+    lines.push('-- ③ 엣지 삽입 (양방향)');
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const dist = haversine(
+        points[i].lat, points[i].lng,
+        points[i+1].lat, points[i+1].lng
+      ).toFixed(2);
+      lines.push(`INSERT INTO jeju_road_edges (from_point_id, to_point_id, distance_meters, road_type) VALUES (@base+${i+1}, @base+${i+2}, ${dist}, 'manual');`);
+      lines.push(`INSERT INTO jeju_road_edges (from_point_id, to_point_id, distance_meters, road_type) VALUES (@base+${i+2}, @base+${i+1}, ${dist}, 'manual');`);
+    }
+
+    lines.push('');
+    lines.push(`-- 완료: 포인트 ${points.length}개, 엣지 ${(points.length-1)*2}개 삽입됨`);
+
+    const sql = lines.join('\n');
+    document.getElementById('sql-output').value = sql;
+    document.getElementById('sql-panel').style.display = 'block';
+  }
+
+  function closeSql() {
+    document.getElementById('sql-panel').style.display = 'none';
+  }
+
+  function copySQL() {
+    const ta = document.getElementById('sql-output');
+    ta.select();
+    document.execCommand('copy');
+    alert('SQL이 클립보드에 복사됐습니다!');
+  }
+</script>
+</body>
+</html>

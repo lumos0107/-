@@ -8,12 +8,14 @@ import com.gildongmu.application.dto.RouteRecommendRequest;
 import com.gildongmu.application.dto.RouteRecommendResponse;
 import com.gildongmu.application.dto.RouteRecommendResponse.*;
 import com.gildongmu.database.entity.Course;
+import com.gildongmu.database.entity.User;
 import com.gildongmu.database.entity.Obstacle;
 import com.gildongmu.database.entity.Place;
 import com.gildongmu.database.entity.CoursePoint;
 import com.gildongmu.database.entity.JejuRoadPoint;
 import com.gildongmu.database.repository.CoursePointRepository;
 import com.gildongmu.database.repository.CourseRepository;
+import com.gildongmu.database.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,16 +32,31 @@ public class RouteService {
     private final GeoDataCache cache;
     private final CourseRepository courseRepo;
     private final CoursePointRepository coursePointRepo;
+    private final UserRepository userRepo;
 
     @Transactional
     public RouteRecommendResponse recommend(RouteRecommendRequest req) {
         double slopeWeight    = "beginner".equals(req.getDifficulty()) ? 4.0 : 0.5;
         double slopeThreshold = "beginner".equals(req.getDifficulty()) ? 3.0 : 8.0;
 
+        // 경유지 유효성: 직선거리가 목표거리의 55% 초과면 폴백
+        boolean waypointFallback = false;
+        if (req.getWaypointLat() != null) {
+            double distToWaypoint = HaversineUtil.calculate(
+                req.getLatitude(), req.getLongitude(),
+                req.getWaypointLat(), req.getWaypointLng());
+            if (distToWaypoint > req.getTargetDistance() * 0.55) {
+                waypointFallback = true;
+            }
+        }
+
+        Double effectiveWaypointLat = waypointFallback ? null : req.getWaypointLat();
+        Double effectiveWaypointLng = waypointFallback ? null : req.getWaypointLng();
+
         List<BeamState> beams = beamSearch.generate(
             req.getLatitude(), req.getLongitude(),
             req.getTargetDistance(),
-            req.getWaypointLat(), req.getWaypointLng(),
+            effectiveWaypointLat, effectiveWaypointLng,
             slopeWeight, slopeThreshold
         );
 
@@ -88,11 +105,17 @@ public class RouteService {
             .anchorLongitude(anchorLng)
             .obstacles(obstaclePois)
             .places(placePois)
+            .waypointFallback(waypointFallback)
             .build();
     }
 
     private RouteOption saveCourseAndBuildOption(BeamState beam, RouteRecommendRequest req) {
+        User user = (req.getUserId() != null)
+            ? userRepo.findById(req.getUserId()).orElse(null)
+            : null;
+
         Course course = Course.builder()
+            .user(user)
             .courseName("추천 경로")
             .startLatitude(req.getLatitude())
             .startLongitude(req.getLongitude())

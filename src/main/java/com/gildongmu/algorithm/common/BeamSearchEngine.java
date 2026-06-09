@@ -59,6 +59,22 @@ public class BeamSearchEngine {
             .findNearestRoadPoint(startLat, startLng)
             .orElseThrow(() -> new RuntimeException("출발점 근처 도로 없음"));
 
+        // 앵커 지정 시: 앵커에서 가장 가까운 도로 포인트를 반드시 경유
+        // 앵커까지 직선거리가 목표거리의 55% 초과면 유효하지 않은 경유지로 판단
+        final Integer waypointPointId;
+        if (waypointLat != null) {
+            double distToWaypoint = HaversineUtil.calculate(startLat, startLng, waypointLat, waypointLng);
+            if (distToWaypoint > targetDistance * 0.55) {
+                waypointPointId = null; // 폴백: 자동 앵커
+            } else {
+                waypointPointId = cache.findNearestRoadPoint(waypointLat, waypointLng)
+                    .map(JejuRoadPoint::getPointId)
+                    .orElse(null);
+            }
+        } else {
+            waypointPointId = null;
+        }
+
         // ── Phase 1: 방향 목표를 향해 탐색, 실제 종점이 앵커가 됨 ──────
         log.info("│ [Phase 1] 출발 → 방향 탐색 시작 (sideB=false)");
         List<BeamState> beams = strategy.initializeBeams(startPoint, context);
@@ -84,20 +100,32 @@ public class BeamSearchEngine {
                     JejuRoadPoint cand = cs.getCandidate();
                     newBeam.addPoint(cand, cs.getSegmentDistance(), cs.getScore());
 
-                    // Phase1 종료: 이동거리 48% 이상 AND 출발점 직선거리 32% 이상
-                    // → 앵커가 출발점 근처에 찍히지 않도록 보장 (기존 0.38 기준 유지)
                     double distFromStart = HaversineUtil.calculate(
                         startLat, startLng, cand.getLatitude(), cand.getLongitude());
-                    boolean traveledEnough = newBeam.getTraveledDistance() >= targetDistance * 0.48;
-                    boolean farEnough = distFromStart >= 2000.0;
-                    if (traveledEnough && farEnough) {
-                        newBeam.setTargetPassed(true);
-                        newBeam.setPhaseOneBoundary(newBeam.getRoute().size());
-                        newBeam.setCompleted(true);
-                    } else if (newBeam.getTraveledDistance() >= targetDistance * 0.51) {
-                        // 폴백: 너무 멀리 갔으면 직선거리 조건 무시하고 강제 종료
-                        newBeam.setPhaseOneBoundary(newBeam.getRoute().size());
-                        newBeam.setCompleted(true);
+
+                    if (waypointPointId != null) {
+                        // 앵커 지정: 가장 가까운 포인트 도달 시 종료
+                        if (cand.getPointId().equals(waypointPointId)) {
+                            newBeam.setTargetPassed(true);
+                            newBeam.setPhaseOneBoundary(newBeam.getRoute().size());
+                            newBeam.setCompleted(true);
+                        } else if (newBeam.getTraveledDistance() >= targetDistance * 0.80) {
+                            // 폴백: 너무 멀리 가면 강제 종료
+                            newBeam.setPhaseOneBoundary(newBeam.getRoute().size());
+                            newBeam.setCompleted(true);
+                        }
+                    } else {
+                        // 자동 앵커: 기존 거리 조건 유지
+                        boolean traveledEnough = newBeam.getTraveledDistance() >= targetDistance * 0.48;
+                        boolean farEnough = distFromStart >= 2000.0;
+                        if (traveledEnough && farEnough) {
+                            newBeam.setTargetPassed(true);
+                            newBeam.setPhaseOneBoundary(newBeam.getRoute().size());
+                            newBeam.setCompleted(true);
+                        } else if (newBeam.getTraveledDistance() >= targetDistance * 0.51) {
+                            newBeam.setPhaseOneBoundary(newBeam.getRoute().size());
+                            newBeam.setCompleted(true);
+                        }
                     }
                     newBeams.add(newBeam);
                 }

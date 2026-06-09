@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.Comparator;
 
 @Slf4j
 @Component
@@ -68,22 +69,27 @@ public class GeoDataCache {
     }
 
     private void loadFromDB() {
-        log.info("[캐시] DB에서 전체 포인트 로딩 중...");
-        List<JejuRoadPoint> allPoints = roadPointRepo.findAll();
-        pointMap = allPoints.stream()
+        log.info("[캐시] DB에서 한라산 이북 포인트 로딩 중...");
+        List<JejuRoadPoint> points = roadPointRepo.findAllNorthOfHalla();
+        pointMap = points.stream()
             .collect(Collectors.toMap(JejuRoadPoint::getPointId, p -> p));
         log.info("[캐시] 포인트 {}개 로드 완료", pointMap.size());
 
-        log.info("[캐시] DB에서 전체 엣지 로딩 중...");
-        List<JejuRoadEdge> edges = edgeRepo.findAll();
+        log.info("[캐시] 엣지 로딩 중...");
+        List<Integer> pointIds = new ArrayList<>(pointMap.keySet());
         graph = new HashMap<>();
-        for (JejuRoadEdge e : edges) {
-            JejuRoadPoint to = pointMap.get(e.getToPointId());
-            if (to != null) {
-                graph.computeIfAbsent(e.getFromPointId(), k -> new ArrayList<>()).add(to);
+        int batchSize = 1000;
+        for (int i = 0; i < pointIds.size(); i += batchSize) {
+            List<Integer> batch = pointIds.subList(i, Math.min(i + batchSize, pointIds.size()));
+            List<JejuRoadEdge> edges = edgeRepo.findEdgesForPoints(batch);
+            for (JejuRoadEdge e : edges) {
+                JejuRoadPoint to = pointMap.get(e.getToPointId());
+                if (to != null) {
+                    graph.computeIfAbsent(e.getFromPointId(), k -> new ArrayList<>()).add(to);
+                }
             }
         }
-        log.info("[캐시] 엣지 {}개 → 그래프 노드 {}개 로드 완료", edges.size(), graph.size());
+        log.info("[캐시] 그래프 노드 {}개 빌드 완료", graph.size());
     }
 
     private void saveToFile(File cacheFile) {
@@ -102,11 +108,27 @@ public class GeoDataCache {
     }
 
     public List<JejuRoadPoint> findRoadPointsWithinRadius(double lat, double lng, double radiusMeters) {
-        return roadPointRepo.findWithinRadius(lat, lng, radiusMeters);
+        double latDelta = radiusMeters / 111000.0;
+        double lngDelta = radiusMeters / (111000.0 * Math.cos(Math.toRadians(lat)));
+        return pointMap.values().stream()
+            .filter(p -> Math.abs(p.getLatitude() - lat) <= latDelta
+                      && Math.abs(p.getLongitude() - lng) <= lngDelta
+                      && HaversineUtil.calculate(lat, lng, p.getLatitude(), p.getLongitude()) <= radiusMeters)
+            .collect(Collectors.toList());
     }
 
     public Optional<JejuRoadPoint> findNearestRoadPoint(double lat, double lng) {
-        return roadPointRepo.findNearestPoint(lat, lng);
+        double latDelta = 2000.0 / 111000.0;
+        double lngDelta = 2000.0 / (111000.0 * Math.cos(Math.toRadians(lat)));
+        Optional<JejuRoadPoint> result = pointMap.values().stream()
+            .filter(p -> Math.abs(p.getLatitude() - lat) <= latDelta
+                      && Math.abs(p.getLongitude() - lng) <= lngDelta)
+            .min(Comparator.comparingDouble(p ->
+                HaversineUtil.calculate(lat, lng, p.getLatitude(), p.getLongitude())));
+        if (result.isPresent()) return result;
+        return pointMap.values().stream()
+            .min(Comparator.comparingDouble(p ->
+                HaversineUtil.calculate(lat, lng, p.getLatitude(), p.getLongitude())));
     }
 
     public List<Obstacle> findObstaclesWithinRadius(double lat, double lng, double radiusMeters) {

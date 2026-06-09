@@ -13,5 +13,6 @@ public class RouteRecommendRequest {
     private String difficulty;
     private Double waypointLat;
     private Double waypointLng;
+    private Integer userId;
 }
 

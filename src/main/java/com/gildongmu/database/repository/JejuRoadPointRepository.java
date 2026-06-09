@@ -30,6 +30,23 @@ public interface JejuRoadPointRepository extends JpaRepository<JejuRoadPoint, In
            nativeQuery = true)
     List<JejuRoadPoint> findAllOsmPoints();
 
+    // 한라산 이북 OSM 포인트 (위도 33.36 이상 + osm_node_id IS NOT NULL)
+    @Query(value = "SELECT * FROM jeju_road_points WHERE osm_node_id IS NOT NULL AND ST_Y(location) >= 33.36",
+           nativeQuery = true)
+    List<JejuRoadPoint> findAllNorthOfHalla();
+
+    // 반경 내 전체 포인트 (LIMIT 없음, 그래프 빌드용)
+    @Query(value = """
+        SELECT * FROM jeju_road_points
+        WHERE ST_Distance_Sphere(
+            location,
+            ST_SRID(POINT(:lng, :lat), 4326)
+        ) <= :radius
+        """, nativeQuery = true)
+    List<JejuRoadPoint> findAllWithinRadius(@Param("lat") double lat,
+                                             @Param("lng") double lng,
+                                             @Param("radius") double radius);
+
     // 시작점/앵커용 — OSM 백본 포인트만 (고립 CSV 클러스터 방지)
     @Query(value = """
         SELECT * FROM jeju_road_points

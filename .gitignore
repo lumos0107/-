@@ -35,3 +35,17 @@ Thumbs.db
 
 # Tools output
 tools/manual_points.sql
+
+# Data files
+*.csv
+data/
+backup/
+bin/
+collect_os
+
+# IDE / Claude
+.vscode/
+.claude/
+
+# HTML test
+test_route.html

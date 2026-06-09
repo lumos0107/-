@@ -12,6 +12,7 @@ public class RouteRecommendResponse {
     private double anchorLongitude;
     private List<ObstaclePoi> obstacles;
     private List<PlacePoi> places;
+    private boolean waypointFallback;
 
     @Getter
     @Builder

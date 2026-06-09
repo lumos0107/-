@@ -1,7 +1,64 @@
 import { RoutePoint } from './api'
 
-export function getStaticMapHtml(token: string, points: RoutePoint[]): string {
+export function getAnchorPickerMapHtml(
+  token: string,
+  centerLat: number,
+  centerLng: number,
+): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8' />
+  <meta name='viewport' content='width=device-width, initial-scale=1, maximum-scale=1' />
+  <link href='https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css' rel='stylesheet' />
+  <script src='https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js'></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { width: 100vw; height: 100vh; overflow: hidden; }
+    #map { width: 100%; height: 100%; }
+    .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib { display: none !important; }
+    #hint {
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.65); color: white;
+      padding: 6px 14px; border-radius: 20px; font-size: 13px;
+      pointer-events: none; white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div id='map'></div>
+  <div id='hint'>지도를 탭해서 반환점을 선택하세요</div>
+  <script>
+    mapboxgl.accessToken = '${token}';
+    let anchorMarker = null;
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [${centerLng}, ${centerLat}],
+      zoom: 14,
+    });
+    map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+    map.on('click', (e) => {
+      const { lng, lat } = e.lngLat;
+      if (anchorMarker) anchorMarker.remove();
+      anchorMarker = new mapboxgl.Marker({ color: '#f59e0b' })
+        .setLngLat([lng, lat])
+        .addTo(map);
+      const msg = JSON.stringify({ type: 'ANCHOR_SELECTED', latitude: lat, longitude: lng });
+      if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
+    });
+  </script>
+</body>
+</html>`
+}
+
+export function getStaticMapHtml(
+  token: string,
+  points: RoutePoint[],
+  anchor?: { latitude: number; longitude: number },
+): string {
   const coords = points.map((p) => [p.longitude, p.latitude])
+  const anchorJson = JSON.stringify(anchor ?? null)
 
   return `<!DOCTYPE html>
 <html>
@@ -45,6 +102,13 @@ export function getStaticMapHtml(token: string, points: RoutePoint[]): string {
       map.fitBounds(bounds, { padding: 50, maxZoom: 16 });
       new mapboxgl.Marker({ color: '#059669' }).setLngLat(coords[0]).addTo(map);
       new mapboxgl.Marker({ color: '#dc2626' }).setLngLat(coords[coords.length - 1]).addTo(map);
+      const anchor = ${anchorJson};
+      if (anchor) {
+        const el = document.createElement('div');
+        el.style.cssText = 'width:28px;height:28px;border-radius:50%;background:#f59e0b;border:3px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.35);font-size:14px;';
+        el.textContent = '⚓';
+        new mapboxgl.Marker({ element: el }).setLngLat([anchor.longitude, anchor.latitude]).addTo(map);
+      }
     });
   </script>
 </body>

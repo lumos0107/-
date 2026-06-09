@@ -8,11 +8,12 @@ const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? ''
 
 interface Props {
   points: RoutePoint[]
+  anchor?: { latitude: number; longitude: number }
   height?: number
   flex?: boolean
 }
 
-export default function RouteMapView({ points, height = 400, flex = false }: Props) {
+export default function RouteMapView({ points, anchor, height = 400, flex = false }: Props) {
   if (points.length < 2) {
     return (
       <View style={[styles.fallback, flex ? { flex: 1 } : { height }]}>
@@ -24,7 +25,7 @@ export default function RouteMapView({ points, height = 400, flex = false }: Pro
   return (
     <WebView
       style={[styles.map, flex ? { flex: 1 } : { height }]}
-      source={{ html: getStaticMapHtml(MAPBOX_TOKEN, points) }}
+      source={{ html: getStaticMapHtml(MAPBOX_TOKEN, points, anchor) }}
       originWhitelist={['*']}
       scrollEnabled={false}
       javaScriptEnabled

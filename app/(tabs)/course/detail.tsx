@@ -49,10 +49,13 @@ const graphStyles = StyleSheet.create({
 })
 
 export default function CourseDetailScreen() {
-  const { routes: routesJson, selectedIndex } = useLocalSearchParams<{
+  const { routes: routesJson, selectedIndex, anchorLat, anchorLng } = useLocalSearchParams<{
     routes: string
     selectedIndex: string
+    anchorLat?: string
+    anchorLng?: string
   }>()
+
 
   const allRoutes = useMemo<RouteOption[]>(() => {
     try { return JSON.parse(routesJson ?? '[]') } catch { return [] }
@@ -122,7 +125,14 @@ export default function CourseDetailScreen() {
       {route && <ElevationGraph points={route.points} />}
 
       {/* 지도 */}
-      {route && <RouteMapView key={activeIdx} points={route.points} flex />}
+      {route && (
+        <RouteMapView
+          key={activeIdx}
+          points={route.points}
+          anchor={anchorLat && anchorLng ? { latitude: Number(anchorLat), longitude: Number(anchorLng) } : undefined}
+          flex
+        />
+      )}
 
       {/* 하단 출발 버튼 */}
       <View style={styles.footer}>

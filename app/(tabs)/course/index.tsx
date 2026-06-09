@@ -3,13 +3,17 @@ import {
   View, Text, TouchableOpacity, StyleSheet,
   ScrollView, Modal, Pressable, ActivityIndicator, Alert, Animated,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { X } from 'lucide-react-native'
+import { X, MapPin } from 'lucide-react-native'
+import WebView from 'react-native-webview'
 import * as Location from 'expo-location'
 import { Colors } from '../../../constants/Colors'
 import CourseCard from '../../../components/CourseCard'
 import { recommendRoutes, RouteOption } from '../../../utils/api'
+import { getAnchorPickerMapHtml } from '../../../utils/mapHtml'
+
+const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? ''
 
 const DISTANCES = [3, 5, 10]
 const DIFFICULTIES = [
@@ -18,11 +22,18 @@ const DIFFICULTIES = [
 ]
 
 export default function CourseFindScreen() {
+  const insets = useSafeAreaInsets()
   const [selectedDist, setSelectedDist] = useState<number | null>(null)
   const [selectedDiff, setSelectedDiff] = useState<string | null>(null)
+  const [anchorMode, setAnchorMode] = useState<'auto' | 'manual'>('auto')
+  const [anchorPoint, setAnchorPoint] = useState<{ latitude: number; longitude: number } | null>(null)
   const [showResults, setShowResults] = useState(false)
+  const [showAnchorPicker, setShowAnchorPicker] = useState(false)
+  const [pickerCenter, setPickerCenter] = useState({ latitude: 33.4996, longitude: 126.5312 })
+  const [pendingAnchor, setPendingAnchor] = useState<{ latitude: number; longitude: number } | null>(null)
   const [loading, setLoading] = useState(false)
   const [routes, setRoutes] = useState<RouteOption[]>([])
+  const [responseAnchor, setResponseAnchor] = useState<{ latitude: number; longitude: number } | null>(null)
 
   const canSearch = selectedDist !== null && selectedDiff !== null
 
@@ -60,6 +71,37 @@ export default function CourseFindScreen() {
     }
   }, [loading])
 
+  async function openAnchorPicker() {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync()
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+        setPickerCenter({ latitude: loc.coords.latitude, longitude: loc.coords.longitude })
+      }
+    } catch {}
+    setPendingAnchor(null)
+    setShowAnchorPicker(true)
+  }
+
+  function handleAnchorMessage(event: { nativeEvent: { data: string } }) {
+    try {
+      const data = JSON.parse(event.nativeEvent.data)
+      if (data.type === 'ANCHOR_SELECTED') {
+        setPendingAnchor({ latitude: data.latitude, longitude: data.longitude })
+      }
+    } catch {}
+  }
+
+  function confirmAnchor() {
+    if (pendingAnchor) setAnchorPoint(pendingAnchor)
+    setShowAnchorPicker(false)
+  }
+
+  function clearManualAnchor() {
+    setAnchorMode('auto')
+    setAnchorPoint(null)
+  }
+
   async function handleSearch() {
     if (!selectedDist) return
     setLoading(true)
@@ -76,8 +118,14 @@ export default function CourseFindScreen() {
         loc.coords.longitude,
         selectedDist * 1000,
         selectedDiff ?? 'beginner',
+        anchorMode === 'manual' && anchorPoint ? anchorPoint.latitude : undefined,
+        anchorMode === 'manual' && anchorPoint ? anchorPoint.longitude : undefined,
       )
+      if (data.waypointFallback) {
+        Alert.alert('경유지 선정 오류', '지정한 경유지가 너무 멀어 자동으로 경로를 생성했습니다.')
+      }
       setRoutes(data.routes)
+      setResponseAnchor({ latitude: data.anchorLatitude, longitude: data.anchorLongitude })
       setShowResults(true)
     } catch (e: any) {
       Alert.alert('오류', e.message || '코스 추천에 실패했습니다.')
@@ -93,6 +141,8 @@ export default function CourseFindScreen() {
       params: {
         routes: JSON.stringify(routes),
         selectedIndex: index.toString(),
+        anchorLat: responseAnchor?.latitude.toString() ?? '',
+        anchorLng: responseAnchor?.longitude.toString() ?? '',
       },
     })
   }
@@ -136,6 +186,37 @@ export default function CourseFindScreen() {
           </View>
         </View>
 
+        {/* 앵커 설정 */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>반환점 설정</Text>
+          <View style={styles.chipRow}>
+            <TouchableOpacity
+              style={[styles.chip, styles.chipHalf, anchorMode === 'auto' && styles.chipActive]}
+              onPress={clearManualAnchor}
+            >
+              <Text style={[styles.chipText, anchorMode === 'auto' && styles.chipTextActive]}>자동</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.chip, styles.chipHalf, anchorMode === 'manual' && styles.chipActive]}
+              onPress={() => { setAnchorMode('manual'); openAnchorPicker() }}
+            >
+              <View style={styles.chipInner}>
+                <MapPin size={12} color={anchorMode === 'manual' ? Colors.TEXT_WHITE : Colors.TEXT_SECONDARY} />
+                <Text style={[styles.chipText, anchorMode === 'manual' && styles.chipTextActive]}>
+                  {anchorPoint ? '위치 선택됨' : '직접 선택'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+          {anchorMode === 'manual' && anchorPoint && (
+            <TouchableOpacity style={styles.anchorBadge} onPress={openAnchorPicker}>
+              <Text style={styles.anchorBadgeText}>
+                📍 {anchorPoint.latitude.toFixed(4)}, {anchorPoint.longitude.toFixed(4)}  (탭하여 변경)
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         <TouchableOpacity
           style={[styles.searchBtn, (!canSearch || loading) && styles.searchBtnDisabled]}
           onPress={handleSearch}
@@ -148,6 +229,7 @@ export default function CourseFindScreen() {
         </TouchableOpacity>
       </ScrollView>
 
+      {/* 추천 결과 바텀시트 */}
       <Modal
         visible={showResults}
         transparent
@@ -172,6 +254,45 @@ export default function CourseFindScreen() {
               />
             ))}
           </ScrollView>
+        </View>
+      </Modal>
+
+      {/* 앵커 직접 선택 모달 */}
+      <Modal
+        visible={showAnchorPicker}
+        animationType="slide"
+        onRequestClose={() => setShowAnchorPicker(false)}
+      >
+        <View style={[styles.pickerSafe, { paddingTop: insets.top }]}>
+          <View style={styles.pickerHeader}>
+            <TouchableOpacity onPress={() => setShowAnchorPicker(false)} style={styles.backBtn}>
+              <X color={Colors.TEXT_PRIMARY} size={20} />
+            </TouchableOpacity>
+            <Text style={styles.pickerTitle}>반환점 선택</Text>
+            <View style={{ width: 36 }} />
+          </View>
+          <Text style={styles.pickerHint}>지도를 탭해서 반환점 위치를 선택하세요</Text>
+          <WebView
+            style={{ flex: 1 }}
+            source={{ html: getAnchorPickerMapHtml(MAPBOX_TOKEN, pickerCenter.latitude, pickerCenter.longitude) }}
+            originWhitelist={['*']}
+            javaScriptEnabled
+            onMessage={handleAnchorMessage}
+          />
+          <View style={[styles.pickerFooter, { paddingBottom: insets.bottom || 16 }]}>
+            {pendingAnchor && (
+              <Text style={styles.pendingCoord}>
+                📍 {pendingAnchor.latitude.toFixed(4)}, {pendingAnchor.longitude.toFixed(4)}
+              </Text>
+            )}
+            <TouchableOpacity
+              style={[styles.confirmBtn, !pendingAnchor && styles.confirmBtnDisabled]}
+              onPress={confirmAnchor}
+              disabled={!pendingAnchor}
+            >
+              <Text style={styles.confirmBtnText}>이 위치로 선택</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 
@@ -218,6 +339,12 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: Colors.PRIMARY, borderColor: Colors.PRIMARY },
   chipText: { fontSize: 12, fontWeight: '800', color: Colors.TEXT_SECONDARY },
   chipTextActive: { color: Colors.TEXT_WHITE },
+  chipInner: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  anchorBadge: {
+    marginTop: 8, padding: 8, borderRadius: 8,
+    backgroundColor: Colors.SURFACE_DARK,
+  },
+  anchorBadgeText: { fontSize: 11, color: Colors.TEXT_SECONDARY, fontWeight: '600' },
   searchBtn: {
     height: 44, backgroundColor: Colors.PRIMARY,
     borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8,
@@ -244,6 +371,31 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginBottom: 16,
   },
   sheetTitle: { fontSize: 16, fontWeight: '900', color: Colors.TEXT_PRIMARY },
+
+  // 앵커 picker 모달
+  pickerSafe: { flex: 1, backgroundColor: Colors.BACKGROUND },
+  pickerHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 12,
+    backgroundColor: Colors.CARD, borderBottomWidth: 1, borderBottomColor: Colors.BORDER,
+  },
+  pickerTitle: { fontSize: 15, fontWeight: '900', color: Colors.TEXT_PRIMARY },
+  backBtn: { padding: 4 },
+  pickerHint: {
+    fontSize: 12, color: Colors.TEXT_SECONDARY, fontWeight: '600',
+    textAlign: 'center', paddingVertical: 8, backgroundColor: Colors.SURFACE_DARK,
+  },
+  pickerFooter: {
+    padding: 16, backgroundColor: Colors.CARD,
+    borderTopWidth: 1, borderTopColor: Colors.BORDER, gap: 8,
+  },
+  pendingCoord: { fontSize: 12, color: Colors.TEXT_SECONDARY, fontWeight: '600', textAlign: 'center' },
+  confirmBtn: {
+    height: 48, backgroundColor: Colors.PRIMARY,
+    borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+  },
+  confirmBtnDisabled: { backgroundColor: Colors.BORDER },
+  confirmBtnText: { fontSize: 15, fontWeight: '900', color: Colors.TEXT_WHITE },
 
   loadingOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',

@@ -79,5 +79,40 @@ export const DUMMY_SEGMENTS = [
   { km: 5, paceSeconds: 320 },
 ]
 
+// 저장 루트 더미 (UI 개발용 — API 연결 시 GET /api/runs/history 기반으로 교체)
+export const DUMMY_SAVED_ROUTES = [
+  {
+    id: 1,
+    courseId: 1,
+    name: '애월 바당길',
+    distanceMeters: 5200,
+    avgPaceSeconds: 328,
+    rating: 5,
+    runCount: 3,
+    color: '#2563eb',
+  },
+  {
+    id: 2,
+    courseId: 2,
+    name: '협재 둘레길',
+    distanceMeters: 4800,
+    avgPaceSeconds: 305,
+    rating: 4,
+    runCount: 2,
+    color: '#059669',
+  },
+  {
+    id: 3,
+    courseId: 3,
+    name: '용두암 해안로',
+    distanceMeters: 5400,
+    avgPaceSeconds: 335,
+    rating: 3,
+    runCount: 1,
+    color: '#d97706',
+  },
+]
+
 export type RouteOption = typeof DUMMY_ROUTES.routes[0]
 export type HistoryRecord = typeof DUMMY_HISTORY[0]
+export type SavedRoute = typeof DUMMY_SAVED_ROUTES[0]

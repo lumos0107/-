@@ -56,6 +56,7 @@ export type RecommendResponse = {
   anchorLongitude: number
   obstacles: Array<{ latitude: number; longitude: number; type: string }>
   places: Array<{ latitude: number; longitude: number; name: string; category: string }>
+  waypointFallback: boolean
 }
 
 export async function recommendRoutes(
@@ -63,11 +64,17 @@ export async function recommendRoutes(
   longitude: number,
   targetDistance: number,
   difficulty: string,
+  waypointLat?: number,
+  waypointLng?: number,
 ): Promise<RecommendResponse> {
+  const userId = await getStoredUserId()
   const res = await fetch(`${BASE_URL}/api/routes/recommend`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ latitude, longitude, targetDistance, difficulty }),
+    body: JSON.stringify({
+      latitude, longitude, targetDistance, difficulty, userId,
+      ...(waypointLat != null ? { waypointLat, waypointLng } : {}),
+    }),
   })
   if (!res.ok) throw new Error('경로 추천 실패')
   return res.json()

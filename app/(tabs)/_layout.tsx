@@ -16,7 +16,7 @@ export default function TabLayout() {
         },
         tabBarActiveTintColor: Colors.PRIMARY,
         tabBarInactiveTintColor: Colors.TEXT_SECONDARY,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '800' },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: 2 },
       }}
     >
       <Tabs.Screen
@@ -27,26 +27,30 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="course"
+        name="course/index"
         options={{
-          title: '코스',
+          title: '코스생성',
           tabBarIcon: ({ color, size }) => <Map color={color} size={size} />,
         }}
       />
       <Tabs.Screen
-        name="record"
+        name="record/index"
         options={{
           title: '기록',
           tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size} />,
         }}
       />
       <Tabs.Screen
-        name="saved"
+        name="saved/index"
         options={{
-          title: '저장 루트',
+          title: '저장루트',
           tabBarIcon: ({ color, size }) => <Star color={color} size={size} />,
         }}
       />
+      {/* 서브 라우트 — 탭 바에서 숨김 */}
+      <Tabs.Screen name="course/detail" options={{ href: null }} />
+      <Tabs.Screen name="course/recommend" options={{ href: null }} />
+      <Tabs.Screen name="record/[id]" options={{ href: null }} />
     </Tabs>
   )
 }
